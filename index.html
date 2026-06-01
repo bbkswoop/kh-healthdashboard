@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#1C1814;color:#F0EBE3;min-height:100vh;font-size:14px}
+/* PASSWORD GATE */
+#gate{position:fixed;inset:0;background:#1C1814;z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem}
+#gate h1{font-family:'DM Serif Display',serif;font-size:28px;color:#E8A87C;font-style:italic}
+#gate p{font-size:13px;color:#6B5E4E;margin-top:-4px}
+#gate-input{background:#2E2720;border:1px solid #4A3F35;border-radius:10px;padding:10px 16px;font-size:15px;color:#F0EBE3;font-family:'DM Sans',sans-serif;outline:none;width:260px;text-align:center}
+#gate-input:focus{border-color:#C4813A}
+#gate-btn{background:#C4813A;border:none;border-radius:10px;padding:10px 28px;font-size:14px;color:#FFF4E8;font-family:'DM Sans',sans-serif;cursor:pointer;width:260px}
+#gate-btn:hover{background:#D4956A}
+#gate-err{font-size:12px;color:#E8896A;min-height:16px}
+/* SUPABASE CONFIG BANNER */
+#config-banner{background:#3A1A10;border:1px solid #C4563A;border-radius:10px;padding:1rem 1.25rem;margin:1rem;font-size:13px;color:#E8B09C;line-height:1.7;display:none}
+#config-banner code{background:#2A1008;padding:2px 7px;border-radius:4px;font-family:monospace;font-size:12px;color:#E8A87C}
+/* NAV */
+.nav{background:#241F1A;border-bottom:1px solid #3A332C;padding:0 1.5rem;display:flex;align-items:center;gap:0;position:sticky;top:0;z-index:50}
+.nav-brand{font-family:'DM Serif Display',serif;font-size:18px;color:#E8A87C;font-style:italic;margin-right:1.5rem;white-space:nowrap;padding:1rem 0}
+.nav-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{padding:.9rem 1rem;font-size:12px;font-weight:400;color:#8C7E6E;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;letter-spacing:.03em;text-transform:uppercase;background:none;border-left:none;border-right:none;border-top:none;font-family:'DM Sans',sans-serif}
+.nav-tab:hover{color:#E8A87C}
+.nav-tab.active{color:#E8A87C;border-bottom-color:#E8A87C}
+.page{display:none;padding:1.5rem;max-width:900px;margin:0 auto}
+.page.active{display:block}
+.card{background:#241F1A;border:1px solid #3A332C;border-radius:14px;padding:1.25rem;margin-bottom:1rem}
+.card-title{font-family:'DM Serif Display',serif;font-size:16px;font-weight:400;color:#E8D5C0;margin-bottom:1rem;font-style:italic}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem}
+.stat-tile{background:#2E2720;border:1px solid #3A332C;border-radius:12px;padding:1rem}
+.stat-label{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#6B5E4E;margin-bottom:4px}
+.stat-value{font-family:'DM Serif Display',serif;font-size:26px;color:#F0EBE3;line-height:1}
+.stat-sub{font-size:11px;color:#6B5E4E;margin-top:3px}
+.prog-wrap{margin-bottom:.75rem}
+.prog-label{display:flex;justify-content:space-between;font-size:11px;color:#8C7E6E;margin-bottom:5px}
+.prog-track{height:6px;background:#3A332C;border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.inp{background:#2E2720;border:1px solid #4A3F35;border-radius:8px;padding:8px 11px;font-size:13px;color:#F0EBE3;font-family:'DM Sans',sans-serif;width:100%;outline:none;transition:border-color .15s}
+.inp:focus{border-color:#C4813A}
+.inp::placeholder{color:#5A4F45}
+.inp-row{display:flex;gap:8px;margin-bottom:.75rem;align-items:flex-end}
+.inp-group{display:flex;flex-direction:column;gap:4px;flex:1}
+.inp-group label{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#6B5E4E}
+.btn{font-family:'DM Sans',sans-serif;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;transition:all .15s;border:1px solid #4A3F35;background:#2E2720;color:#E8D5C0}
+.btn:hover{background:#3A332C}
+.btn-primary{background:#C4813A;border-color:#C4813A;color:#FFF4E8}
+.btn-primary:hover{background:#D4956A}
+.btn-sm{padding:5px 11px;font-size:11px}
+.btn-ghost{background:transparent;border-color:#3A332C;color:#8C7E6E}
+.btn-ghost:hover{color:#E8D5C0}
+.btn-danger{border-color:#8C3A3A;color:#E8896A;background:transparent}
+.btn-danger:hover{background:#3A2020}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:500;letter-spacing:.03em}
+.badge-orange{background:#4A2E10;color:#E8A87C}
+.badge-purple{background:#2E1A4A;color:#C4A0E8}
+.badge-teal{background:#0E3028;color:#7EC8A4}
+.badge-pink{background:#3A1020;color:#E88CAA}
+.badge-green{background:#1A3010;color:#A0D87C}
+canvas{display:block;width:100%}
+.meal-row{border-radius:10px;border:1px solid #3A332C;margin-bottom:.5rem;overflow:hidden}
+.meal-row-header{padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.meal-row-header:hover{background:#2E2720}
+.meal-check{width:18px;height:18px;border-radius:50%;border:1.5px solid #6B5E4E;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.meal-check.done{background:#C4813A;border-color:#C4813A}
+.meal-name{flex:1;font-size:13px;color:#E8D5C0}
+.meal-meta{font-size:11px;color:#6B5E4E}
+.meal-log-area{padding:10px 14px;border-top:1px solid #3A332C;background:#1C1814;display:none}
+.meal-row.open .meal-log-area{display:block}
+.log-entry{background:#2E2720;border-radius:6px;padding:6px 10px;margin-bottom:5px;font-size:12px;color:#C4B8A8}
+.log-time-label{color:#E8A87C;font-weight:500;margin-right:6px}
+.run-row{background:#2E2720;border:1px solid #3A332C;border-radius:10px;padding:12px 14px;margin-bottom:.5rem;display:flex;align-items:center;gap:12px}
+.run-dist{font-family:'DM Serif Display',serif;font-size:22px;color:#E8A87C}
+.run-info{flex:1}
+.run-date-label{font-size:11px;color:#6B5E4E}
+.run-stats{display:flex;gap:12px;margin-top:3px;flex-wrap:wrap}
+.run-stat{font-size:12px;color:#C4B8A8}
+.run-stat span{color:#E8D5C0;font-weight:500}
+.milestone-row{border-radius:10px;border:1px solid #3A332C;padding:12px 14px;margin-bottom:.5rem;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:border-color .15s}
+.milestone-row:hover{border-color:#6B5E4E}
+.milestone-row.done{opacity:.55;border-color:#2E2720}
+.ms-check{width:20px;height:20px;border-radius:50%;border:1.5px solid #6B5E4E;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.milestone-row.done .ms-check{background:#7EC8A4;border-color:#7EC8A4}
+.ms-title{font-size:13px;color:#E8D5C0;margin-bottom:2px}
+.milestone-row.done .ms-title{text-decoration:line-through;color:#6B5E4E}
+.ms-date{font-size:11px;color:#6B5E4E}
+.ms-desc{font-size:11px;color:#8C7E6E;margin-top:3px;line-height:1.5}
+.phase-tabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.phase-tab{padding:5px 13px;border-radius:20px;border:1px solid #4A3F35;background:transparent;color:#8C7E6E;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.phase-tab.active{background:#C4813A;border-color:#C4813A;color:#FFF4E8}
+.session-card{background:#2E2720;border:1px solid #3A332C;border-radius:10px;padding:12px 14px;margin-bottom:.5rem}
+.session-day{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#6B5E4E;margin-bottom:3px}
+.session-notes{font-size:11px;color:#8C7E6E;line-height:1.5}
+.session-actions{display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap}
+.weight-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #2E2720}
+.weight-date{font-size:11px;color:#6B5E4E;width:90px;flex-shrink:0}
+.weight-val{font-size:14px;color:#E8D5C0;font-weight:500;width:70px;flex-shrink:0}
+.weight-note{font-size:11px;color:#8C7E6E;flex:1}
+.joint-btn{padding:5px 12px;border-radius:20px;border:1px solid #4A3F35;background:transparent;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;color:#8C7E6E}
+.joint-btn.sel-good{background:#1A3010;border-color:#7EC8A4;color:#7EC8A4}
+.joint-btn.sel-okay{background:#3A2E10;border-color:#E8C87C;color:#E8C87C}
+.joint-btn.sel-sore{background:#3A1010;border-color:#E8896A;color:#E8896A}
+.divider{border:none;border-top:1px solid #3A332C;margin:.75rem 0}
+.flash{font-size:11px;color:#7EC8A4;font-style:italic;opacity:0;transition:opacity .3s}
+.flash.show{opacity:1}
+.section-title{font-family:'DM Serif Display',serif;font-size:15px;color:#C4A882;font-style:italic}
+.empty{text-align:center;padding:2rem;color:#4A3F35;font-size:13px}
+.saving-indicator{position:fixed;bottom:1rem;right:1rem;background:#2E2720;border:1px solid #4A3F35;border-radius:8px;padding:6px 14px;font-size:12px;color:#7EC8A4;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100}
+.saving-indicator.show{opacity:1}
+@media(max-width:600px){.grid2,.grid3,.grid4{grid-template-columns:1fr 1fr}.nav-brand{font-size:15px}.inp-row{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="gate">
+  <h1>my health</h1>
+  <p>Enter your password to continue</p>
+  <input id="gate-input" type="password" placeholder="password" onkeydown="if(event.key==='Enter')checkPassword()">
+  <button id="gate-btn" onclick="checkPassword()">Enter</button>
+  <div id="gate-err"></div>
+</div>
+
+<!-- SAVING INDICATOR -->
+<div class="saving-indicator" id="saving-indicator">Saved ✓</div>
+
+<!-- CONFIG BANNER (shows if Supabase not configured) -->
+<div id="config-banner">
+  ⚠️ <strong>Supabase not configured yet.</strong> Data will not persist between sessions.<br>
+  Replace <code>YOUR_SUPABASE_URL</code> and <code>YOUR_SUPABASE_ANON_KEY</code> at the top of the &lt;script&gt; with your real values. See setup guide.
+</div>
+
+<nav class="nav" id="main-nav" style="display:none">
+  <div class="nav-brand">my health</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showTab('overview',this)">Overview</button>
+    <button class="nav-tab" onclick="showTab('nutrition',this)">Nutrition</button>
+    <button class="nav-tab" onclick="showTab('workouts',this)">Workouts</button>
+    <button class="nav-tab" onclick="showTab('running',this)">Running</button>
+    <button class="nav-tab" onclick="showTab('goals',this)">Goals</button>
+  </div>
+</nav>
+
+<!-- OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div class="grid4" id="ov-stats" style="margin-bottom:1rem"></div>
+  <div class="grid2">
+    <div class="card"><div class="card-title">Today</div><div id="ov-today"></div></div>
+    <div class="card"><div class="card-title">Recent trends</div><div id="ov-trends"></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="card-title">Last run</div><div id="ov-lastrun"></div></div>
+    <div class="card"><div class="card-title">Next milestones</div><div id="ov-milestones"></div></div>
+  </div>
+</div>
+
+<!-- NUTRITION -->
+<div class="page" id="page-nutrition">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap">
+      <div class="phase-tabs" style="margin-bottom:0">
+        <button class="phase-tab active" onclick="switchNutDay('rest',this)">Rest / Pilates</button>
+        <button class="phase-tab" onclick="switchNutDay('run',this)">Run day</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        <button class="btn btn-sm btn-ghost" onclick="nutDateChange(-1)">‹</button>
+        <span id="nut-date-label" style="font-size:12px;color:#8C7E6E;min-width:80px;text-align:center"></span>
+        <button class="btn btn-sm btn-ghost" onclick="nutDateChange(1)">›</button>
+      </div>
+    </div>
+    <div class="grid4" id="nut-totals" style="margin-bottom:1rem"></div>
+    <div id="nut-meals"></div>
+  </div>
+</div>
+
+<!-- WORKOUTS -->
+<div class="page" id="page-workouts">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div class="card-title" style="margin-bottom:0">Training plan</div>
+      <div id="workout-streak" style="font-size:12px;color:#E8A87C"></div>
+    </div>
+    <div class="phase-tabs" id="workout-phase-tabs"></div>
+    <div id="phase-desc-box" style="background:#2E2720;border-radius:8px;padding:10px 13px;margin-bottom:1rem;font-size:12px;color:#8C7E6E;line-height:1.6"></div>
+    <div id="workout-sessions"></div>
+  </div>
+</div>
+
+<!-- RUNNING -->
+<div class="page" id="page-running">
+  <div class="card">
+    <div class="card-title">Log a run</div>
+    <div class="inp-row">
+      <div class="inp-group"><label>Date</label><input class="inp" type="date" id="run-date"></div>
+      <div class="inp-group"><label>Distance (mi)</label><input class="inp" type="number" id="run-dist" step=".01" placeholder="3.10"></div>
+      <div class="inp-group"><label>Time (mm:ss)</label><input class="inp" type="text" id="run-time" placeholder="38:31"></div>
+    </div>
+    <div class="inp-row">
+      <div class="inp-group"><label>Felt like</label>
+        <select class="inp" id="run-feel"><option value="">— select —</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>All-out</option></select>
+      </div>
+      <div class="inp-group"><label>Notes</label><input class="inp" type="text" id="run-notes" placeholder="Trail, pavement, how joints felt…"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-primary" onclick="logRun()">Save run</button>
+      <span class="flash" id="run-flash">Saved!</span>
+    </div>
+  </div>
+  <div class="grid3" id="run-stats-tiles" style="margin-bottom:1rem"></div>
+  <div class="card"><div class="card-title">Pace trend</div><canvas id="pace-chart" height="80"></canvas></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+      <div class="section-title">Run log</div>
+    </div>
+    <div id="run-log-list"></div>
+  </div>
+  <div class="card"><div class="card-title">Race goals</div><div id="race-goals"></div></div>
+</div>
+
+<!-- GOALS -->
+<div class="page" id="page-goals">
+  <div class="grid2" style="margin-bottom:1rem">
+    <div class="card">
+      <div class="card-title">Body stats</div>
+      <div class="inp-row">
+        <div class="inp-group"><label>Weight (lbs)</label><input class="inp" type="number" id="w-weight" step=".1" placeholder="117.0"></div>
+        <div class="inp-group"><label>Date</label><input class="inp" type="date" id="w-date"></div>
+      </div>
+      <div class="inp-row">
+        <div class="inp-group"><label>Joint health today</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="joint-btn" onclick="selectJoint('good',this)">Good</button>
+            <button class="joint-btn" onclick="selectJoint('okay',this)">A bit sore</button>
+            <button class="joint-btn" onclick="selectJoint('sore',this)">Sore</button>
+          </div>
+        </div>
+      </div>
+      <div class="inp-row">
+        <div class="inp-group"><label>Notes</label><input class="inp" type="text" id="w-notes" placeholder="How you're feeling overall…"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-primary" onclick="logWeight()">Save</button>
+        <span class="flash" id="weight-flash">Saved!</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Weight trend</div>
+      <canvas id="weight-chart" height="100"></canvas>
+      <div id="weight-log-list" style="margin-top:.75rem"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div class="card-title" style="margin-bottom:0">Milestones</div>
+      <div id="milestone-progress" style="font-size:12px;color:#8C7E6E"></div>
+    </div>
+    <div style="height:6px;background:#3A332C;border-radius:3px;overflow:hidden;margin-bottom:1.25rem">
+      <div id="milestone-bar" style="height:100%;background:linear-gradient(90deg,#C4813A,#9B5AB0);border-radius:3px;transition:width .5s ease;width:0%"></div>
+    </div>
+    <div id="milestones-list"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STEP 1: REPLACE THESE TWO VALUES
+// ═══════════════════════════════════════════
+const SUPABASE_URL = 'https://plexxeevwewqaqbzsmbg.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsZXh4ZWV2d2V3cWFxYnpzbWJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyOTMxOTAsImV4cCI6MjA5NTg2OTE5MH0.QN7AjM5j-dPCF5-mflG9EWuN0SDKcJ4wQKY_qbPbW4c';
+// ═══════════════════════════════════════════
+// STEP 2: SET YOUR PASSWORD HERE
+// ═══════════════════════════════════════════
+const DASHBOARD_PASSWORD = 'K@rmai$mypassword';
+// ═══════════════════════════════════════════
+
+const configured = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+let sb = null;
+if(configured){
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} else {
+  document.getElementById('config-banner').style.display = 'block';
+}
+
+// ── PASSWORD GATE ──
+function checkPassword(){
+  const val = document.getElementById('gate-input').value;
+  if(val === DASHBOARD_PASSWORD){
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('main-nav').style.display = 'flex';
+    document.querySelectorAll('.page').forEach(p => p.style.display = '');
+    init();
+  } else {
+    const err = document.getElementById('gate-err');
+    err.textContent = 'Incorrect password. Try again.';
+    document.getElementById('gate-input').value = '';
+    setTimeout(()=>err.textContent='', 2500);
+  }
+}
+
+// ── STORAGE ──
+async function dbGet(key){
+  if(!sb){
+    try{ return JSON.parse(localStorage.getItem(key)); }catch(e){ return null; }
+  }
+  const {data} = await sb.from('health_data').select('value').eq('key',key).single();
+  return data ? JSON.parse(data.value) : null;
+}
+
+async function dbSet(key, val){
+  if(!sb){
+    localStorage.setItem(key, JSON.stringify(val));
+    showSaved(); return;
+  }
+  await sb.from('health_data').upsert({key, value: JSON.stringify(val)}, {onConflict:'key'});
+  showSaved();
+}
+
+function showSaved(){
+  const el = document.getElementById('saving-indicator');
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 1800);
+}
+
+// ── DATA ──
+const MEALS = {
+  run:[
+    {id:'r1',time:'~7am pre-run',name:'Pre-run fuel',cal:120,pro:1,carb:28,fat:0,desc:'Banana or rice cakes + honey. Fast carbs only, nothing else.',note:'No protein, fat, or fiber before the run.'},
+    {id:'r2',time:'Post-run (within 30 min)',name:'Post-run recovery',cal:480,pro:45,carb:35,fat:14,desc:'Fage 5% + whey + berries or honey. 5g creatine stirred in.',note:'Most important meal on run days.'},
+    {id:'r3',time:'Midmorning',name:'Second breakfast',cal:420,pro:18,carb:38,fat:20,desc:'2 scrambled eggs + sourdough + butter + Fairlife milk in coffee.'},
+    {id:'r4',time:'Lunch',name:'Midday plate',cal:550,pro:32,carb:48,fat:22,desc:'Canned tuna over rice with olive oil, or turkey deli sandwich on sourdough.'},
+    {id:'r5',time:'Afternoon snack',name:'Easy snack',cal:260,pro:14,carb:12,fat:18,desc:'2 string cheeses + almonds or walnuts.'},
+    {id:'r6',time:'Dinner',name:'Main meal',cal:650,pro:36,carb:58,fat:24,desc:'Chicken thighs or ground beef (80/20) + rice or potato + olive oil or butter.'},
+    {id:'r7',time:'Evening (optional)',name:'Night snack',cal:160,pro:14,carb:10,fat:5,desc:'Fage 5% or cottage cheese.',note:'Skip if not hungry.'},
+  ],
+  rest:[
+    {id:'s1',time:'~7am with coffee',name:'Pre-workout snack',cal:130,pro:2,carb:28,fat:1,desc:'Banana or rice cakes + honey while listening to your podcast.',note:'Part of the coffee routine. No extra effort.'},
+    {id:'s2',time:'8–8:30am post-workout',name:'Breakfast',cal:480,pro:42,carb:35,fat:16,desc:'Fage 5% + whey + berries or honey + Fairlife milk in coffee. 5g creatine.'},
+    {id:'s3',time:'Midmorning (after walk + shower)',name:'Second breakfast',cal:380,pro:16,carb:38,fat:18,desc:'2 scrambled eggs + sourdough + butter.'},
+    {id:'s4',time:'Lunch',name:'Midday plate',cal:520,pro:28,carb:50,fat:20,desc:'Tuna over rice, or turkey deli sandwich on sourdough.'},
+    {id:'s5',time:'Mid-afternoon',name:'Easy snack',cal:240,pro:13,carb:12,fat:16,desc:'2 string cheeses + walnuts or almonds.'},
+    {id:'s6',time:'Dinner',name:'Main meal',cal:620,pro:34,carb:52,fat:22,desc:'Chicken thighs or ground beef (80/20) + rice or potato + olive oil or butter.'},
+    {id:'s7',time:'Evening (optional)',name:'Night snack',cal:160,pro:14,carb:10,fat:5,desc:'Fage 5% or cottage cheese.',note:'Only if hungry.'},
+  ]
+};
+
+const PHASES=[
+  {name:'Phase 1',label:'Foundation',range:'Now – Week 6',desc:'Reactivating muscles, building mind-muscle connection, learning form. Light resistance. Joint protection is priority — foam roll every run day.',
+   days:{0:{type:'Pilates',notes:'Ball squeeze bridges 3×15 • Ring inner thigh pulses 3×20 • Clamshell w/ ankle cuff 3×15/side • Dead bug 3×10 • Oblique C-curve w/ ball 3×12/side • IT band foam roll'},
+         1:{type:'Run',notes:'Run 1–2 mi (run/walk)\nAfter: foam roll IT band • hip flexor stretch • figure-8 band lateral walks 2×15/side'},
+         2:{type:'Strength',notes:'Hip thrust 4×15 (heavy band) • Sumo squat 3×15 • Donkey kick+kickback 3×15/side • Fire hydrant circles 3×15/side • Calf raises on step 3×20 • Band pull-apart 3×15'},
+         3:{type:'Run',notes:'Run 1–2 mi (run/walk)\nAfter: foam roll IT band • massage ball foot • pigeon pose 60s/side'},
+         4:{type:'Rest',notes:'Gentle walk. Optional: full foam roll + stretch band side bends.'},
+         5:{type:'Rest',notes:'Full rest. Massage ball: glutes, calves, feet.'},
+         6:{type:'Run',notes:'Long run 3.1 mi (run/walk)\nAfter: foam roll everything • massage ball glutes • legs up the wall 5 min'}}},
+  {name:'Phase 2',label:'Build',range:'Week 7–12',desc:'More volume, heavier bands, ankle weights on more movements. Glute medius work gets heavier — hip shape starts to show.',
+   days:{0:{type:'Pilates',notes:'Ball pelvic curl 4×15 • Ring leg lower 3×12 • Hip abduction ankle cuff 4×20/side • Oblique reach w/ ball 3×15/side • Clamshell+lift 3×15/side'},
+         1:{type:'Run',notes:'Run 1.5–2 mi (longer segments)\nAfter: IT band foam roll 90s/side • figure-8 band walks • hip 90/90 stretch'},
+         2:{type:'Strength',notes:'Hip thrust 35lb band 4×15 • Curtsy lunge ankle cuff 4×12/side • Squat walk 4×20/side • Side-lying abduction 4×20/side • Stiff-leg deadlift 4×12 • Calf raise eccentric 4×15'},
+         3:{type:'Run',notes:'Run 1.5–2 mi\nAfter: foam roll calves+IT band • massage ball glutes • pigeon 90s/side'},
+         4:{type:'Rest',notes:'Walk or rest. Stretch band oblique series. Hip flexor stretch.'},
+         5:{type:'Rest',notes:'Full rest. Light massage ball work.'},
+         6:{type:'Run',notes:'Long run 3.1+ mi (more running, less walking)\nAfter: foam roll everything • legs up the wall 5 min'}}},
+  {name:'Phase 3',label:'Intensify',range:'Week 13–18',desc:'Supersets and longer time under tension. This is where real shape change happens. Rest max 30s between supersets.',
+   days:{0:{type:'Pilates',notes:'SUPERSET: Ball bridge 15 + Ring squeeze 15 × 4 • Abduction 4×20/side • Oblique curl w/ ball 3×15/side • Dead bug slow 4×10'},
+         1:{type:'Run',notes:'Run 2 mi (mostly continuous)\nAfter: IT band foam roll • figure-8 lateral walks • hip 90/90'},
+         2:{type:'Strength',notes:'SUPERSET: Hip thrust 15 + Donkey kick 15/side × 4 • SUPERSET: Curtsy lunge 12/side + Fire hydrant 15/side × 4 • Standing abduction 4×20/side • Calf raise eccentric 4×20'},
+         3:{type:'Run',notes:'Run 2 mi\nAfter: full foam roll • massage ball glutes • pigeon 90s/side'},
+         4:{type:'Rest',notes:'Rest. Full hip mobility flow. Thoracic foam roll.'},
+         5:{type:'Rest',notes:'Full rest. Protect Sunday run.'},
+         6:{type:'Run',notes:'Long run 3.5–4 mi (continuous goal)\nAfter: foam roll everything • legs up wall 8 min'}}},
+  {name:'Phase 4',label:'Peak',range:'Week 19+',desc:'Maximum resistance, full circuits. Running strong and consistent. Every session counts — but so does recovery.',
+   days:{0:{type:'Pilates',notes:'CIRCUIT ×4: Ball bridge 20 → Ring squeeze 12 → Abduction 20/side → Dead bug 10 • Oblique series 3×15/side'},
+         1:{type:'Run',notes:'Run 2–2.5 mi continuous\nAfter: IT band foam roll • figure-8 activation • hip 90/90'},
+         2:{type:'Strength',notes:'CIRCUIT ×4: Hip thrust 20 → Curtsy lunge 15/side → Abduction 20/side → Calf raise 20 • Arms: curl+press+lateral+pull-apart × 3×12'},
+         3:{type:'Run',notes:'Run 2–2.5 mi continuous\nAfter: full foam roll • pigeon + hip flexor 90s/side'},
+         4:{type:'Rest',notes:'Rest. Stretch band waist series. Full hip mobility.'},
+         5:{type:'Rest',notes:'Full rest before long run.'},
+         6:{type:'Run',notes:'Long run 4–5 mi continuous\nAfter: full recovery protocol • legs up wall 10 min'}}}
+];
+
+const MILESTONES=[
+  {id:'m1',cat:'Right now',title:'Reach 120 lbs',date:'Jun–Jul 2026',desc:'2,200 cal/day + creatine + protein. A signal you\'re fueling the work.',badge:'badge-orange'},
+  {id:'m2',cat:'Right now',title:'Hit 100g protein consistently for 2 weeks',date:'Jun 2026',desc:'The foundation of every other goal on this list.',badge:'badge-orange'},
+  {id:'m3',cat:'Right now',title:'Start creatine — stay consistent 30 days',date:'Jun 2026',desc:'5g a day in your morning yogurt.',badge:'badge-orange'},
+  {id:'m4',cat:'Right now',title:'Complete Phase 1 of the workout plan',date:'Jun 2026',desc:'Foundation done. Muscles reactivated, form locked in.',badge:'badge-orange'},
+  {id:'m5',cat:'Running',title:'Run 1 mile without stopping',date:'Jun–Jul 2026',desc:'The first real milestone. It will happen faster than you think.',badge:'badge-teal'},
+  {id:'m6',cat:'Running',title:'Run 2 miles without stopping',date:'Jul 2026',desc:'This is where it starts to feel like running, not surviving.',badge:'badge-teal'},
+  {id:'m7',cat:'Running',title:'Complete the Runna 10-week plan',date:'Aug 2026',desc:'Week 1 of 10 done. Nine more and you\'re a runner.',badge:'badge-teal'},
+  {id:'m8',cat:'Running',title:'First 5k race — Diplo\'s Run Club, July 18',date:'Jul 18 2026',desc:'For the experience only. Finish, get the medal, eat something good after.',badge:'badge-teal'},
+  {id:'m9',cat:'Running',title:'Race a 5k — Parkway Run, Sep 27',date:'Sep 27 2026',desc:'This one you actually race. Sub-33 min is a realistic goal.',badge:'badge-teal'},
+  {id:'m10',cat:'Body',title:'Complete Phase 4 of the workout plan',date:'Aug–Sep 2026',desc:'Peak phase. Maximum resistance. You\'ve built the foundation — now it shows.',badge:'badge-pink'},
+  {id:'m11',cat:'Body',title:'Feel the best you\'ve ever felt in your body',date:'Fall 2026',desc:'Not a number. Just the feeling of walking into a room knowing you put in the work.',badge:'badge-pink'},
+  {id:'m12',cat:'2027',title:'Run a 10k',date:'Spring 2027',desc:'Natural next step once your base is solid.',badge:'badge-purple'},
+  {id:'m13',cat:'2027',title:'Run a half marathon — 13.1 miles',date:'Fall 2027',desc:'Cross this finish line and the marathon is inevitable.',badge:'badge-purple'},
+  {id:'m14',cat:'Before 30',title:'Run the Philadelphia Marathon — 26.2 miles',date:'Nov 2028',desc:'Your city. Your finish line. Before you turn 30. This is what Wissahickon on May 31 was the first step toward.',badge:'badge-green'},
+];
+
+const RACE_GOALS=[
+  {name:'Diplo\'s Run Club 5k',date:'2026-07-18',goal:'Finish — experience only',type:'Experience'},
+  {name:'Parkway Run 5k',date:'2026-09-27',goal:'Sub 33:00',type:'Race'},
+];
+
+const DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+// ── STATE ──
+let nutDay='rest', nutOffset=0, currentPhase=0, jointSel='';
+let msState={}, weightLog=[], runLog=[], workoutLog={}, nutLogs={};
+
+// ── INIT ──
+async function init(){
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('run-date').value = today;
+  document.getElementById('w-date').value = today;
+  msState   = await dbGet('ms_state')    || {};
+  weightLog = await dbGet('weight_log')  || [];
+  runLog    = await dbGet('run_log')     || [];
+  workoutLog= await dbGet('workout_log') || {};
+  nutLogs   = await dbGet('nut_logs')    || {};
+  renderAll();
+}
+
+function renderAll(){ renderOverview(); renderNutrition(); renderWorkouts(); renderRunning(); renderGoals(); }
+
+// ── NAV ──
+function showTab(tab, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(tab==='running') setTimeout(()=>drawRunCharts(),50);
+  if(tab==='goals')   setTimeout(()=>drawWeightChart(),50);
+}
+
+// ── OVERVIEW ──
+function renderOverview(){
+  const lastRun    = runLog.length ? runLog[runLog.length-1] : null;
+  const lastWeight = weightLog.length ? weightLog[weightLog.length-1] : null;
+  const totalMi    = runLog.reduce((a,r)=>a+(parseFloat(r.dist)||0),0);
+  const doneCt     = Object.values(msState).filter(Boolean).length;
+
+  document.getElementById('ov-stats').innerHTML=[
+    ['Weight', lastWeight ? lastWeight.weight+' lbs' : '—', 'log in Goals'],
+    ['Total miles', totalMi.toFixed(1)+' mi', runLog.length+' runs logged'],
+    ['Milestones', doneCt+' / '+MILESTONES.length, 'completed'],
+    ['Protein target', '120g+', 'daily goal'],
+  ].map(([l,v,s])=>`<div class="stat-tile"><div class="stat-label">${l}</div><div class="stat-value">${v}</div><div class="stat-sub">${s}</div></div>`).join('');
+
+  document.getElementById('ov-today').innerHTML=`
+    <div style="font-size:11px;color:#6B5E4E;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">Recent runs</div>
+    ${runLog.slice(-3).reverse().map(r=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:#C4B8A8;padding:5px 0;border-bottom:1px solid #2E2720">
+      <span>${r.date}</span><span style="color:#E8A87C">${r.dist} mi</span><span>${r.pace}/mi</span><span style="color:#6B5E4E">${r.feel||''}</span></div>`).join('')||'<div class="empty" style="padding:.75rem">No runs yet</div>'}
+    <hr class="divider">
+    <div style="font-size:11px;color:#6B5E4E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Joint health log</div>
+    ${weightLog.slice(-3).reverse().map(w=>`<div style="display:flex;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid #2E2720">
+      <span style="color:#6B5E4E;width:80px">${w.date}</span>
+      <span style="color:${w.joint==='good'?'#7EC8A4':w.joint==='sore'?'#E8896A':'#E8C87C'}">${w.joint||'—'}</span>
+      <span style="color:#6B5E4E">${w.notes||''}</span></div>`).join('')||'<div style="font-size:12px;color:#4A3F35;padding:.4rem 0">No entries yet</div>'}
+  `;
+
+  document.getElementById('ov-trends').innerHTML=`
+    <div style="font-size:11px;color:#6B5E4E;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.05em">Weight trend</div>
+    <canvas id="ov-w-spark" height="50" style="margin-bottom:.75rem"></canvas>
+    <div style="font-size:11px;color:#6B5E4E;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.05em">Mileage per run</div>
+    <canvas id="ov-m-spark" height="50"></canvas>
+  `;
+  setTimeout(()=>{
+    drawSparkline('ov-w-spark', weightLog.slice(-10).map(w=>parseFloat(w.weight)), '#C4813A');
+    drawSparkline('ov-m-spark', runLog.slice(-10).map(r=>parseFloat(r.dist)), '#7EC8A4');
+  },20);
+
+  document.getElementById('ov-lastrun').innerHTML = lastRun ? `
+    <div class="run-dist">${lastRun.dist} <span style="font-size:14px;color:#8C7E6E">mi (${lastRun.km} km)</span></div>
+    <div class="run-stats">
+      <div class="run-stat">Time <span>${lastRun.time}</span></div>
+      <div class="run-stat">Pace <span>${lastRun.pace}/mi</span></div>
+      ${lastRun.feel?`<div class="run-stat">Felt <span>${lastRun.feel}</span></div>`:''}
+    </div>
+    ${lastRun.notes?`<div style="font-size:11px;color:#6B5E4E;margin-top:5px">${lastRun.notes}</div>`:''}
+    <div style="font-size:11px;color:#4A3F35;margin-top:4px">${lastRun.date}</div>
+  ` : '<div class="empty">No runs logged yet</div>';
+
+  const upcoming = MILESTONES.filter(m=>!msState[m.id]).slice(0,4);
+  document.getElementById('ov-milestones').innerHTML = upcoming.map(m=>`
+    <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #2E2720;cursor:pointer" onclick="showTab('goals',null)">
+      <div style="width:6px;height:6px;border-radius:50%;background:#C4813A;margin-top:5px;flex-shrink:0"></div>
+      <div><div style="font-size:12px;color:#E8D5C0">${m.title}</div><div style="font-size:11px;color:#6B5E4E">${m.date}</div></div>
+    </div>`).join('') || '<div class="empty">All milestones complete 🎉</div>';
+}
+
+// ── NUTRITION ──
+function nutKey(mealId){ return `${nutDateKey()}_${nutDay}_${mealId}`; }
+function nutDateKey(){ const d=new Date(); d.setDate(d.getDate()+nutOffset); return d.toISOString().slice(0,10); }
+function nutDateLabel(){ if(nutOffset===0)return'Today'; if(nutOffset===-1)return'Yesterday'; if(nutOffset===1)return'Tomorrow'; const d=new Date(); d.setDate(d.getDate()+nutOffset); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function switchNutDay(day,btn){ nutDay=day; document.querySelectorAll('#page-nutrition .phase-tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderNutrition(); }
+function nutDateChange(d){ nutOffset+=d; renderNutrition(); }
+function getNutLog(id){ return nutLogs[nutKey(id)] || {logged:false,entries:[]}; }
+async function setNutLog(id,val){ nutLogs[nutKey(id)]=val; await dbSet('nut_logs',nutLogs); }
+
+function renderNutrition(){
+  document.getElementById('nut-date-label').textContent = nutDateLabel();
+  const meals = MEALS[nutDay];
+  const tgt = {run:{cal:2300,pro:128,carb:240,fat:72},rest:{cal:2150,pro:118,carb:205,fat:72}}[nutDay];
+  const ss = [{bg:'#3A2010',fill:'#C4813A'},{bg:'#2A1840',fill:'#9B5AB0'},{bg:'#0E2818',fill:'#7EC8A4'},{bg:'#2A2010',fill:'#D4960A'}];
+  let lCal=0,lPro=0,lCarb=0,lFat=0;
+  meals.forEach(m=>{ const l=getNutLog(m.id); if(l.logged){lCal+=m.cal;lPro+=m.pro;lCarb+=m.carb;lFat+=m.fat;} });
+  document.getElementById('nut-totals').innerHTML=[['Calories',lCal,tgt.cal,'kcal'],['Protein',lPro,tgt.pro,'g'],['Carbs',lCarb,tgt.carb,'g'],['Fat',lFat,tgt.fat,'g']].map(([label,val,target,unit],i)=>{
+    const pct=Math.min(100,Math.round(val/target*100)); const s=ss[i];
+    return `<div class="stat-tile" style="background:${s.bg}"><div class="stat-label">${label}</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#F0EBE3">${val}<span style="font-size:11px;color:#8C7E6E"> / ${target}${unit}</span></div>
+      <div class="prog-track" style="margin-top:6px"><div class="prog-fill" style="width:${pct}%;background:${s.fill}"></div></div></div>`;
+  }).join('');
+
+  document.getElementById('nut-meals').innerHTML = meals.map(m=>{
+    const l = getNutLog(m.id); const entries = l.entries||[];
+    return `<div class="meal-row${l.logged?' open':''}" id="nrow-${m.id}">
+      <div class="meal-row-header" onclick="toggleNutRow('${m.id}')">
+        <div class="meal-check${l.logged?' done':''}" onclick="toggleNutLogged('${m.id}',event)">
+          ${l.logged?`<svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/></svg>`:''}
+        </div>
+        <div class="meal-name">${m.time} — ${m.name}</div>
+        <div class="meal-meta">${m.cal} kcal · ${m.pro}g protein</div>
+      </div>
+      <div class="meal-log-area">
+        <div style="font-size:12px;color:#8C7E6E;margin-bottom:.6rem;line-height:1.5">${m.desc}${m.note?`<br><em style="color:#5A4F45">${m.note}</em>`:''}</div>
+        ${entries.map(e=>`<div class="log-entry">${e.time?`<span class="log-time-label">${e.time}</span>`:''}<span>${e.what}</span></div>`).join('')}
+        <div class="inp-row" style="margin-bottom:.5rem">
+          <input class="inp" type="time" id="nt-${m.id}" style="width:110px;flex:none">
+          <input class="inp" type="text" id="nw-${m.id}" placeholder="What did you actually eat?" onkeydown="if(event.key==='Enter')saveNutLog('${m.id}')">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-sm btn-danger" onclick="clearNutLog('${m.id}')">Clear</button>
+          <button class="btn btn-sm btn-primary" onclick="saveNutLog('${m.id}')">Log it</button>
+          <span class="flash" id="nf-${m.id}">Saved!</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleNutRow(id){ document.getElementById('nrow-'+id).classList.toggle('open'); }
+async function toggleNutLogged(id,e){ e.stopPropagation(); const l=getNutLog(id); l.logged=!l.logged; if(!l.entries)l.entries=[]; await setNutLog(id,l); renderNutrition(); }
+async function saveNutLog(id){
+  const time=document.getElementById('nt-'+id).value, what=document.getElementById('nw-'+id).value.trim();
+  if(!what)return;
+  const l=getNutLog(id); l.logged=true; if(!l.entries)l.entries=[]; l.entries.push({time,what});
+  await setNutLog(id,l);
+  document.getElementById('nw-'+id).value='';
+  const f=document.getElementById('nf-'+id); f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),2000);
+  renderNutrition(); setTimeout(()=>{ const el=document.getElementById('nrow-'+id); if(el)el.classList.add('open'); },20);
+}
+async function clearNutLog(id){ await setNutLog(id,{logged:false,entries:[]}); renderNutrition(); }
+
+// ── WORKOUTS ──
+function renderWorkouts(){
+  document.getElementById('workout-phase-tabs').innerHTML = PHASES.map((p,i)=>
+    `<button class="phase-tab${i===currentPhase?' active':''}" onclick="switchPhase(${i})">${p.name}: ${p.label}</button>`).join('');
+  const p = PHASES[currentPhase];
+  document.getElementById('phase-desc-box').innerHTML = `<strong style="color:#E8D5C0">${p.name} — ${p.label}</strong> · ${p.range}<br>${p.desc}`;
+  const streak = Object.keys(workoutLog).filter(k=>workoutLog[k]?.done).length;
+  document.getElementById('workout-streak').textContent = streak>0 ? `${streak} sessions logged 🔥` : '';
+  const typeColors = {'Pilates':'badge-purple','Run':'badge-teal','Strength':'badge-orange','Rest':'badge-green'};
+  document.getElementById('workout-sessions').innerHTML = DOW.map((day,i)=>{
+    const s = p.days[i]; if(!s)return'';
+    const key = `wo_p${currentPhase}_d${i}`, logged = workoutLog[key];
+    return `<div class="session-card" style="${logged?.done?'border-color:#C4813A':''}">
+      <div class="session-day">${day}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span class="badge ${typeColors[s.type]||'badge-orange'}">${s.type}</span>
+        ${logged?.done?`<span style="font-size:11px;color:#7EC8A4">✓ ${logged.date||''}</span>`:''}
+      </div>
+      <div class="session-notes">${s.notes.replace(/\n/g,'<br>')}</div>
+      <div class="session-actions">
+        ${!logged?.done
+          ?`<button class="btn btn-sm btn-primary" onclick="logWorkout('${key}')">Mark done</button>`
+          :`<button class="btn btn-sm btn-ghost" onclick="undoWorkout('${key}')">Undo</button>`}
+        <input class="inp" type="text" id="wo-${key}" placeholder="How did it go?" style="font-size:12px;padding:5px 9px;flex:1" value="${logged?.note||''}" onkeydown="if(event.key==='Enter')saveWONote('${key}')">
+        <button class="btn btn-sm btn-ghost" onclick="saveWONote('${key}')">Save note</button>
+      </div>
+      ${logged?.note?`<div style="font-size:11px;color:#7EC8A4;margin-top:5px;font-style:italic">"${logged.note}"</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function switchPhase(i){ currentPhase=i; renderWorkouts(); }
+async function logWorkout(key){ const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}); workoutLog[key]={done:true,date:today,note:''}; await dbSet('workout_log',workoutLog); renderWorkouts(); }
+async function undoWorkout(key){ delete workoutLog[key]; await dbSet('workout_log',workoutLog); renderWorkouts(); }
+async function saveWONote(key){ const note=document.getElementById('wo-'+key).value.trim(); if(!workoutLog[key])workoutLog[key]={done:false}; workoutLog[key].note=note; await dbSet('workout_log',workoutLog); renderWorkouts(); }
+
+// ── RUNNING ──
+function calcPace(mi,timeStr){
+  if(!mi||!timeStr)return'—';
+  const p=timeStr.split(':').map(Number); let s=0;
+  if(p.length===2)s=p[0]*60+p[1]; else if(p.length===3)s=p[0]*3600+p[1]*60+p[2]; else return'—';
+  const ppm=s/mi; const m=Math.floor(ppm/60); const sec=Math.round(ppm%60);
+  return`${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+async function logRun(){
+  const date=document.getElementById('run-date').value;
+  const dist=parseFloat(document.getElementById('run-dist').value);
+  const time=document.getElementById('run-time').value.trim();
+  const feel=document.getElementById('run-feel').value;
+  const notes=document.getElementById('run-notes').value.trim();
+  if(!date||!dist||!time)return;
+  runLog.push({date,dist:dist.toFixed(2),km:(dist*1.60934).toFixed(2),time,pace:calcPace(dist,time),feel,notes});
+  await dbSet('run_log',runLog);
+  document.getElementById('run-time').value=''; document.getElementById('run-dist').value='';
+  document.getElementById('run-notes').value=''; document.getElementById('run-feel').value='';
+  const f=document.getElementById('run-flash'); f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),2000);
+  renderRunning(); renderOverview();
+}
+
+async function deleteRun(idx){ runLog.splice(idx,1); await dbSet('run_log',runLog); renderRunning(); renderOverview(); }
+
+function renderRunning(){
+  const totalMi=runLog.reduce((a,r)=>a+(parseFloat(r.dist)||0),0);
+  const paces=runLog.slice(-5).map(r=>{ const p=r.pace.split(':').map(Number); return p[0]*60+(p[1]||0); });
+  const avgPace=paces.length?paces.reduce((a,b)=>a+b,0)/paces.length:0;
+  const longest=runLog.length?Math.max(...runLog.map(r=>parseFloat(r.dist))):0;
+  document.getElementById('run-stats-tiles').innerHTML=[
+    ['Total miles',totalMi.toFixed(1)+' mi',''+( totalMi*1.60934).toFixed(1)+' km'],
+    ['Avg pace (last 5)',avgPace>0?Math.floor(avgPace/60)+':'+(Math.round(avgPace%60)).toString().padStart(2,'0')+'/mi':'—','recent average'],
+    ['Longest run',longest>0?longest+' mi':'—',longest>0?(longest*1.60934).toFixed(2)+' km':'log your first run'],
+  ].map(([l,v,s])=>`<div class="stat-tile"><div class="stat-label">${l}</div><div class="stat-value" style="font-size:20px">${v}</div><div class="stat-sub">${s}</div></div>`).join('');
+  setTimeout(drawRunCharts,20);
+  document.getElementById('run-log-list').innerHTML=runLog.length?[...runLog].reverse().map((r,i)=>`
+    <div class="run-row">
+      <div><div class="run-dist">${r.dist}</div><div style="font-size:10px;color:#6B5E4E">mi</div></div>
+      <div class="run-info">
+        <div class="run-date-label">${r.date}</div>
+        <div class="run-stats">
+          <div class="run-stat">Time <span>${r.time}</span></div>
+          <div class="run-stat">Pace <span>${r.pace}/mi</span></div>
+          <div class="run-stat">KM <span>${r.km}</span></div>
+          ${r.feel?`<div class="run-stat">Felt <span>${r.feel}</span></div>`:''}
+        </div>
+        ${r.notes?`<div style="font-size:11px;color:#6B5E4E;margin-top:3px">${r.notes}</div>`:''}
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="deleteRun(${runLog.length-1-i})">✕</button>
+    </div>`).join('')
+    :'<div class="empty">No runs logged yet</div>';
+  const today=new Date();
+  document.getElementById('race-goals').innerHTML=RACE_GOALS.map(r=>{
+    const rd=new Date(r.date), days=Math.ceil((rd-today)/86400000);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #2E2720">
+      <div style="flex:1"><div style="font-size:13px;color:#E8D5C0">${r.name}</div>
+        <div style="font-size:11px;color:#6B5E4E;margin-top:2px">${r.date} · Goal: ${r.goal}</div></div>
+      <div style="text-align:right"><div style="font-family:'DM Serif Display',serif;font-size:22px;color:${days>0?'#E8A87C':'#7EC8A4'}">${Math.max(0,days)}</div>
+        <div style="font-size:10px;color:#6B5E4E">${days>0?'days away':'done'}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function drawRunCharts(){
+  const paceVals=runLog.map(r=>{ const p=r.pace.split(':').map(Number); return p[0]+(p[1]||0)/60; });
+  drawLineChart('pace-chart',paceVals,runLog.map(r=>r.date),'#E8A87C','min/mi');
+}
+
+// ── GOALS ──
+function selectJoint(val,btn){ jointSel=val; document.querySelectorAll('.joint-btn').forEach(b=>b.className='joint-btn'); btn.classList.add('sel-'+val); }
+
+async function logWeight(){
+  const weight=document.getElementById('w-weight').value;
+  const date=document.getElementById('w-date').value;
+  const notes=document.getElementById('w-notes').value.trim();
+  if(!weight||!date)return;
+  weightLog.push({weight:parseFloat(weight).toFixed(1),date,notes,joint:jointSel});
+  await dbSet('weight_log',weightLog);
+  document.getElementById('w-weight').value=''; document.getElementById('w-notes').value='';
+  jointSel=''; document.querySelectorAll('.joint-btn').forEach(b=>b.className='joint-btn');
+  const f=document.getElementById('weight-flash'); f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),2000);
+  renderGoals(); renderOverview();
+}
+
+async function toggleMilestone(id){ msState[id]=!msState[id]; await dbSet('ms_state',msState); renderGoals(); renderOverview(); }
+
+function renderGoals(){
+  setTimeout(drawWeightChart,20);
+  document.getElementById('weight-log-list').innerHTML=[...weightLog].reverse().slice(0,6).map(w=>`
+    <div class="weight-row">
+      <div class="weight-date">${w.date}</div>
+      <div class="weight-val">${w.weight} lbs</div>
+      <div class="weight-note">${w.joint?`<span style="color:${w.joint==='good'?'#7EC8A4':w.joint==='sore'?'#E8896A':'#E8C87C'}">${w.joint}</span> · `:''} ${w.notes||''}</div>
+    </div>`).join('')||'<div style="font-size:12px;color:#4A3F35;padding:.5rem 0">No entries yet</div>';
+  const done=Object.values(msState).filter(Boolean).length, total=MILESTONES.length;
+  document.getElementById('milestone-progress').textContent=`${done} of ${total} complete`;
+  document.getElementById('milestone-bar').style.width=Math.round(done/total*100)+'%';
+  let lastCat='';
+  document.getElementById('milestones-list').innerHTML=MILESTONES.map(m=>{
+    let h=''; if(m.cat!==lastCat){ lastCat=m.cat; h=`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#4A3F35;margin:${m.cat==='Right now'?'0':'1rem'} 0 .5rem">${m.cat}</div>`; }
+    return h+`<div class="milestone-row${msState[m.id]?' done':''}" onclick="toggleMilestone('${m.id}')">
+      <div class="ms-check">${msState[m.id]?`<svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/></svg>`:''}</div>
+      <div class="ms-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div class="ms-title">${m.title}</div>
+          <span class="badge ${m.badge}" style="flex-shrink:0">${m.cat}</span>
+        </div>
+        <div class="ms-date">${m.date}</div>
+        <div class="ms-desc">${m.desc}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function drawWeightChart(){ drawLineChart('weight-chart',weightLog.map(w=>parseFloat(w.weight)),weightLog.map(w=>w.date),'#C4813A','lbs',115,125); }
+
+// ── CHARTS ──
+function drawSparkline(id,data,color){
+  const c=document.getElementById(id); if(!c)return;
+  const W=c.offsetWidth||280, H=50; c.width=W; c.height=H;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,W,H);
+  const valid=data.filter(d=>d>0); if(!valid.length){ ctx.strokeStyle='#3A332C'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke(); return; }
+  const mn=Math.min(...valid)*0.97, mx=Math.max(...valid)*1.03, range=mx-mn||1;
+  const pts=data.map((v,i)=>({x:i/(data.length-1||1)*(W-4)+2,y:H-4-((v-mn)/range*(H-8))}));
+  ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.lineJoin='round';
+  ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke();
+  if(pts.length){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(pts[pts.length-1].x,pts[pts.length-1].y,3,0,Math.PI*2); ctx.fill(); }
+}
+
+function drawLineChart(id,data,labels,color,unit,refMin,refMax){
+  const c=document.getElementById(id); if(!c)return;
+  const W=c.offsetWidth||560, H=parseInt(c.getAttribute('height'))||80; c.width=W; c.height=H;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,W,H);
+  if(!data.length){ ctx.fillStyle='#4A3F35'; ctx.font='12px DM Sans,sans-serif'; ctx.textAlign='center'; ctx.fillText('No data yet — start logging!',W/2,H/2); return; }
+  const valid=data.filter(d=>d>0); if(!valid.length)return;
+  let mn=Math.min(...valid)*0.97, mx=Math.max(...valid)*1.03;
+  if(refMin!=null) mn=Math.min(mn,refMin-1);
+  if(refMax!=null) mx=Math.max(mx,refMax+1);
+  const range=mx-mn||1, pad=38, pw=W-pad-4;
+  const px=(i)=>i/(data.length-1||1)*pw+pad;
+  const py=(v)=>H-12-((v-mn)/range*(H-22));
+
+  if(refMin!=null&&refMax!=null){
+    ctx.fillStyle='rgba(196,129,58,0.07)';
+    ctx.fillRect(pad,py(refMax),pw,py(refMin)-py(refMax));
+    ctx.strokeStyle='rgba(196,129,58,0.18)'; ctx.lineWidth=0.5; ctx.setLineDash([3,3]);
+    [refMin,refMax].forEach(v=>{ ctx.beginPath(); ctx.moveTo(pad,py(v)); ctx.lineTo(W,py(v)); ctx.stroke(); });
+    ctx.setLineDash([]);
+    ctx.fillStyle='#4A3F35'; ctx.font='9px DM Sans,sans-serif'; ctx.textAlign='right';
+    ctx.fillText(refMax+' lbs',W-2,py(refMax)-2);
+    ctx.fillText(refMin+' lbs',W-2,py(refMin)+10);
+  }
+
+  ctx.strokeStyle='#2E2720'; ctx.lineWidth=0.5;
+  [0.25,0.5,0.75,1].forEach(t=>{ const y=H-12-(t*(H-22)); ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W,y); ctx.stroke(); });
+  ctx.fillStyle='#4A3F35'; ctx.font='9px DM Sans,sans-serif'; ctx.textAlign='right';
+  [0,0.5,1].forEach(t=>{ ctx.fillText((mn+t*range).toFixed(1),pad-3,H-12-(t*(H-22))+3); });
+
+  const pts=data.map((v,i)=>({x:px(i),y:py(v)}));
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineJoin='round';
+  ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke();
+  ctx.fillStyle=color; pts.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill(); });
+
+  if(labels&&labels.length){
+    ctx.fillStyle='#4A3F35'; ctx.font='9px DM Sans,sans-serif'; ctx.textAlign='center';
+    const step=Math.max(1,Math.floor(labels.length/5));
+    labels.forEach((l,i)=>{ if(i%step===0){ const lbl=l.length>7?l.slice(5):l; ctx.fillText(lbl,pts[i].x,H-1); } });
+  }
+}
+</script>
+</body>
+</html>
